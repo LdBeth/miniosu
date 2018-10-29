@@ -1,3 +1,5 @@
+all : js
+
 js : works.lisp
 		ccl -l works.lisp
 

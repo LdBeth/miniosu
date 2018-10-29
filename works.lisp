@@ -40,7 +40,7 @@
          (define-symbol-macro *aradi* 20)
          (define-symbol-macro *ar*   0.1)
          (define-symbol-macro *radi*  40)
-         (define-symbol-macro *tolerance* 2)
+         (define-symbol-macro *tolerance* 4)
          (defun get-color (c)
            (with-slots (pointer candidate) c
              (aref candidate pointer)))
@@ -55,28 +55,53 @@
            (with-slots (x y r c) o
              (fill c)
              (no-stroke)
-             (ellipse x y *radi*)
+             (ellipse x y (- *radi* 4))
              (stroke c)
              (no-fill)
+             (ellipse x y *radi*)
              (ellipse x y (+ *radi* r))
              (decf r *ar* #| AR|#))
            undefined)
 
+         (defun draw-fail (o)
+           (with-slots (x y) o
+             (stroke "red")
+             (line (+ x 8) (+ y 8) (- x 8) (- y 8))
+             (line (+ x 8) (- y 8) (- x 8) (+ y 8)))
+           undefined)
+
+         (defun draw-success (o)
+           (with-slots (x y) o
+             (stroke "green")
+             (ellipse x y 15)))
+
          (defun loss (c)
            (with-slots (x y) c
-             (#|make a cross|#)))
+             ((@ fails push) (create x x y y)))
+           undefined)
+
+         (defun key-pressed ()
+           (if (< (abs (@ circles 0 r)) *tolerance*)
+               (progn
+                 ((@ sounds 1 play))
+                 (with-slots (x y) ((@ circles pop))
+                   ((@ success push) (create x x y y))))
+               ((@ sounds 2 play)))
+           undefined)
 
          (defsketch
-             ((sounds '())
+             ((status t)
+              (sounds '())
 
               ;; Circle sink
               (circles '())
-
+              (fails '())
+              (success '())
               ;; Beatmap
               (beatmap (create
-                        x '(215 124)
-                        y '(33  144)
-                        time '()))
+                        x '(215 124 344)
+                        y '(33  144 36)
+                        time '(4 5 12)))
 
               ;; Color
               (colormap (create
@@ -92,7 +117,7 @@
 
            ((create-canvas 400 400)
             (text-size 100)
-            (dolist (x (list (color 314 56 95)))
+            (dolist (x (list (color 314 56 95) (color 314 56 44)))
               ((@ colormap candidate push) x))
             ((@ circles push) (new-circle)))
 
@@ -107,12 +132,17 @@
            (funcall (@ time-line shift))
            ((@ circles push) (new-circle)))
            |#
+
+           ((@ fails map)
+            draw-fail)
+           ((@ success map)
+            draw-success)
            (dolist (o circles)
              (draw-circle o))
-
-           ;; Discard expired
-           (when (< (@ circles 0 r) (- *tolerance*)) ; Make some offsect
-             (loss (funcall (@ circles shift))))
+           (when (> (@ circles length) 0)
+             ;; Discard expired
+             (when (< (@ circles 0 r) (- *tolerance*)) ; Make some offsect
+               (loss (funcall (@ circles shift)))))
 
            ;; Ref bubbles
            ))
